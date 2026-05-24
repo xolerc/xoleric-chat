@@ -17,6 +17,8 @@ import MobileHeader from '@/components/chat/MobileHeader'
 import MessageBubble from '@/components/chat/MessageBubble'
 import InputArea from '@/components/chat/InputArea'
 import EditProfileModal from '@/components/chat/EditProfileModal'
+import Lightbox from '@/components/ui/Lightbox'
+import { playNotification, playSend } from '@/lib/sound'
 
 export default function ChatPage() {
   const router = useRouter()
@@ -40,6 +42,7 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null)
   const msgEnd = useRef<HTMLDivElement>(null)
   const recTimer = useRef<NodeJS.Timeout | null>(null)
   const recStart = useRef(0)
@@ -68,6 +71,16 @@ export default function ChatPage() {
 
   // ─── Auto scroll ───
   useEffect(() => { msgEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  // ─── Sound on new message ───
+  const prevCount = useRef(messages.length)
+  useEffect(() => {
+    if (prevCount.current > 0 && messages.length > prevCount.current) {
+      const last = messages[messages.length - 1]
+      if (last && last.fromId !== user?.id) playNotification()
+    }
+    prevCount.current = messages.length
+  }, [messages, user])
 
   // ─── Mood detection ───
   useEffect(() => {
@@ -121,6 +134,7 @@ export default function ChatPage() {
   // ─── Send message ───
   async function handleSend() {
     if ((!text.trim() && !media) || !user) return
+    playSend()
     await sendMessage({
       fromId: user.id, fromName: user.username,
       fromAvatar: user.avatar, text: text.trim(), media,
@@ -216,6 +230,34 @@ export default function ChatPage() {
     return () => clearTimeout(t)
   }, [messages, user])
 
+  // ─── Image lightbox ───
+  function handleImageClick(src: string) {
+    const allImages = messages
+      .filter(m => m.media && !m.media.startsWith('data:audio'))
+      .map(m => m.media!)
+    const idx = allImages.indexOf(src)
+    setLightbox({ images: allImages, index: idx >= 0 ? idx : 0 })
+  }
+
+  // ─── Date helpers ───
+  function getDateLabel(ts: number): string {
+    const d = new Date(ts)
+    const today = new Date()
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
+    if (d.toDateString() === today.toDateString()) return 'Bugun'
+    if (d.toDateString() === yesterday.toDateString()) return 'Kecha'
+    return d.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  function shouldShowDate(msg: Message, idx: number): boolean {
+    if (idx === 0) return true
+    const prev = messages[idx - 1]
+    if (!prev || !prev.time) return false
+    const d1 = new Date(prev.time).toDateString()
+    const d2 = new Date(msg.time).toDateString()
+    return d1 !== d2
+  }
+
   // ─── Derived ───
   const onlineUsers = users.filter(u => u.online)
   const summary = generateSummary(messages.slice(-20).map(m => ({ fromName: m.fromName, text: m.text })))
@@ -268,18 +310,27 @@ export default function ChatPage() {
             </div>
           ) : (
             <>
-              {messages.map(m => {
+              {messages.map((m, idx) => {
                 const own = user && m.fromId === user.id
                 return (
-                  <MessageBubble
-                    key={m.id}
-                    msg={m}
-                    isOwn={!!own}
-                    playing={playing}
-                    onPlayVoice={playVoiceMsg}
-                    onReact={handleReact}
-                    onDelete={own ? handleDelete : undefined}
-                  />
+                  <div key={m.id}>
+                    {shouldShowDate(m, idx) && (
+                      <div className="flex items-center justify-center my-4">
+                        <span className="text-[10px] text-zinc-700 bg-white/[0.03] px-3 py-1 rounded-full font-medium tracking-wide">
+                          {getDateLabel(m.time)}
+                        </span>
+                      </div>
+                    )}
+                    <MessageBubble
+                      msg={m}
+                      isOwn={!!own}
+                      playing={playing}
+                      onPlayVoice={playVoiceMsg}
+                      onReact={handleReact}
+                      onDelete={own ? handleDelete : undefined}
+                      onImageClick={handleImageClick}
+                    />
+                  </div>
                 )
               })}
 
@@ -358,6 +409,17 @@ export default function ChatPage() {
           onFilePick={async f => setMedia(await readFile(f))}
         />
       </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <Lightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onPrev={lightbox.index > 0 ? () => setLightbox(l => l ? { ...l, index: l.index - 1 } : null) : undefined}
+          onNext={lightbox.index < lightbox.images.length - 1 ? () => setLightbox(l => l ? { ...l, index: l.index + 1 } : null) : undefined}
+        />
+      )}
 
       {/* Edit Profile Modal */}
       {user && (

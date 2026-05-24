@@ -16,9 +16,10 @@ interface Props {
   onPlayVoice: (b64: string) => void
   onReact: (msgId: string, emoji: string) => void
   onDelete?: (msgId: string) => void
+  onImageClick?: (src: string) => void
 }
 
-export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReact, onDelete }: Props) {
+export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReact, onDelete, onImageClick }: Props) {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
   const isVoice = msg.media?.startsWith('data:audio')
@@ -87,7 +88,7 @@ export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReac
                   alt="media"
                   onLoad={() => setImgLoaded(true)}
                   className={`max-w-[200px] md:max-w-[260px] rounded-xl cursor-pointer hover:opacity-90 transition-opacity ${imgLoaded ? 'block' : 'hidden'}`}
-                  onClick={() => window.open(msg.media, '_blank')}
+                  onClick={() => onImageClick?.(msg.media!)}
                 />
               </div>
             )}
