@@ -17,16 +17,22 @@ interface Props {
   onToggleRecord: () => void
   onSpeechToText: () => void
   onFilePick: (file: File) => void
+  focusKey?: string | number
 }
 
 export default function InputArea({
   text, setText, media, setMedia,
   recording, recTime, transcribing,
   onSend, onToggleRecord, onSpeechToText, onFilePick,
+  focusKey,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const textRef = useRef<HTMLTextAreaElement>(null)
   const [rows, setRows] = useState(1)
+
+  useEffect(() => {
+    textRef.current?.focus()
+  }, [focusKey])
 
   useEffect(() => {
     if (textRef.current) {

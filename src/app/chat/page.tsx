@@ -18,6 +18,7 @@ import MessageBubble from '@/components/chat/MessageBubble'
 import InputArea from '@/components/chat/InputArea'
 import EditProfileModal from '@/components/chat/EditProfileModal'
 import Lightbox from '@/components/ui/Lightbox'
+import ConnectionStatus from '@/components/chat/ConnectionStatus'
 import { playNotification, playSend } from '@/lib/sound'
 
 export default function ChatPage() {
@@ -314,6 +315,9 @@ export default function ChatPage() {
           onMenuClick={() => setSidebarOpen(true)}
         />
 
+        {/* Connection */}
+        <ConnectionStatus />
+
         {/* Messages */}
         <div ref={msgContainer} className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 scrollbar-hide">
           {messages.length === 0 ? (
@@ -456,6 +460,7 @@ export default function ChatPage() {
           onToggleRecord={toggleRecording}
           onSpeechToText={handleSpeechToText}
           onFilePick={async f => setMedia(await readFile(f))}
+          focusKey={replyTo?.id}
         />
       </div>
 
