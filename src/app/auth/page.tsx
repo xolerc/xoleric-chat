@@ -2,18 +2,24 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createUser, updateUser, randomAura, usernameExists } from '@/lib/db'
-import { motion } from 'framer-motion'
-import { Zap } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Zap, User, ChevronRight } from 'lucide-react'
+import { createUser, usernameExists, randomAura } from '@/lib/db'
+import Particles from '@/components/effects/Particles'
+import Button from '@/components/ui/Button'
+
+const STEPS = ['welcome', 'setup', 'ready'] as const
+type Step = typeof STEPS[number]
 
 export default function AuthPage() {
   const router = useRouter()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [step, setStep] = useState<'welcome' | 'setup'>('welcome')
+  const [step, setStep] = useState<Step>('welcome')
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [avatar, setAvatar] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const uid = localStorage.getItem('xolerc_uid')
@@ -21,31 +27,8 @@ export default function AuthPage() {
   }, [router])
 
   useEffect(() => {
-    const c = canvasRef.current
-    if (!c) return
-    const ctx = c.getContext('2d')!
-    let w = c.width = window.innerWidth
-    let h = c.height = window.innerHeight
-    const pts = Array.from({length:50}, () => ({
-      x:Math.random()*w, y:Math.random()*h,
-      vx:(Math.random()-0.5)*0.2, vy:(Math.random()-0.5)*0.2,
-      r:Math.random()*2+0.5, o:Math.random()*0.2+0.05
-    }))
-    function draw() {
-      ctx.clearRect(0,0,w,h)
-      pts.forEach(p => {
-        p.x+=p.vx; p.y+=p.vy
-        if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0
-        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2)
-        ctx.fillStyle=`rgba(255,255,255,${p.o})`; ctx.fill()
-      })
-      requestAnimationFrame(draw)
-    }
-    draw()
-    const resize = () => { w=c.width=window.innerWidth; h=c.height=window.innerHeight }
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
-  }, [])
+    if (step === 'setup') nameRef.current?.focus()
+  }, [step])
 
   async function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -69,96 +52,164 @@ export default function AuthPage() {
   }
 
   async function handleStart() {
+    const trimmed = username.trim()
+    if (!trimmed) { setError('Username kiriting'); return }
     setLoading(true)
+    setError('')
     try {
-      const exists = await usernameExists(username)
-      if (exists) { alert('Bu username band. Boshqasini tanlang.'); setLoading(false); return }
-      const user = await createUser({ username, bio, avatar, aura: randomAura() })
+      const exists = await usernameExists(trimmed)
+      if (exists) { setError('Bu username band. Boshqasini tanlang.'); setLoading(false); return }
+      const user = await createUser({ username: trimmed, bio, avatar, aura: randomAura() })
       localStorage.setItem('xolerc_uid', user.id)
-      router.push('/chat')
-    } catch (e) {
-      alert('Xatolik yuz berdi')
+      setStep('ready')
+      setTimeout(() => router.push('/chat'), 800)
+    } catch {
+      setError('Xatolik yuz berdi. Qayta urinib ko\'ring.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center">
-      <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-0" />
+    <main className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <Particles count={40} speed={0.12} />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-sm px-6"
-      >
-        {step === 'welcome' ? (
-          <div className="text-center">
+      <div className="relative z-10 w-full max-w-sm px-5">
+        <AnimatePresence mode="wait">
+          {step === 'welcome' && (
             <motion.div
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-6xl mb-8"
+              key="welcome"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ duration: 0.3 }}
+              className="glass-strong rounded-2xl p-8 text-center"
             >
-              <Zap size={48} className="mx-auto text-[#FFDE02]" />
-            </motion.div>
-            <h1 className="text-4xl font-black mb-2">
-              <span className="text-gradient">XOLERIC</span>
-            </h1>
-            <p className="text-zinc-500 text-sm mb-8">ENTER THE SIGNAL</p>
-            <button
-              onClick={() => setStep('setup')}
-              className="w-full bg-[#FFDE02] text-black py-3.5 rounded-xl font-bold text-sm hover:bg-white transition-all"
-            >
-              Kirish
-            </button>
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-xl font-bold mb-1">Profilingizni yarating</h2>
-            <p className="text-zinc-500 text-xs mb-6">Username va avatar — sizning raqamli passingiz</p>
-
-            <div className="flex flex-col items-center mb-6">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold mb-3"
-                style={{
-                  background: avatar ? `url(${avatar}) center/cover` : 'rgba(255,222,2,0.12)',
-                  color: '#FFDE02',
-                }}
+              <motion.div
+                animate={{ opacity: [0.6, 1, 0.6], scale: [1, 1.05, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-16 h-16 rounded-2xl bg-[#FFDE02]/10 flex items-center justify-center mx-auto mb-6"
               >
-                {avatar ? '' : username?.charAt(0)?.toUpperCase() || '?'}
-              </div>
-              <label className="text-xs text-[#FFDE02] cursor-pointer hover:underline">
-                Rasm yuklash
-                <input type="file" accept="image/*" hidden onChange={handleAvatar} />
-              </label>
-            </div>
+                <Zap size={36} className="text-[#FFDE02]" />
+              </motion.div>
+              <h1 className="text-4xl font-black mb-2 tracking-tight">
+                <span className="text-gradient">XOLERIC</span>
+              </h1>
+              <p className="text-zinc-500 text-sm mb-2 font-medium tracking-widest">ENTER THE SIGNAL</p>
+              <p className="text-zinc-600 text-xs mb-8 leading-relaxed">
+                Raqamli atmosferaga xush kelibsiz
+              </p>
+              <Button size="lg" className="w-full" onClick={() => setStep('setup')}>
+                Kirish
+                <ChevronRight size={16} />
+              </Button>
+            </motion.div>
+          )}
 
-            <input
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Username"
-              maxLength={30}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none focus:border-[#FFDE02] mb-3"
-            />
-            <textarea
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              placeholder="Bio (ixtiyoriy)"
-              maxLength={150}
-              rows={2}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none focus:border-[#FFDE02] mb-6 resize-none"
-            />
-
-            <button
-              onClick={handleStart}
-              disabled={!username.trim() || loading}
-              className="w-full bg-[#FFDE02] text-black py-3.5 rounded-xl font-bold text-sm hover:bg-white transition-all disabled:opacity-40"
+          {step === 'setup' && (
+            <motion.div
+              key="setup"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ duration: 0.3 }}
+              className="glass-strong rounded-2xl p-8"
             >
-              {loading ? 'Yuklanmoqda...' : 'CHATGA KIRISH'}
-            </button>
-          </div>
-        )}
-      </motion.div>
+              <h2 className="text-lg font-bold mb-1 tracking-tight">Profilingizni yarating</h2>
+              <p className="text-zinc-500 text-xs mb-6">Username va avatar — sizning raqamli passingiz</p>
+
+              {/* Avatar */}
+              <div className="flex flex-col items-center mb-6">
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold mb-3 ring-2 ring-[#FFDE02]/20 animate-pulse-glow"
+                  style={{
+                    '--aura-color': '#FFDE02',
+                    background: avatar ? `url(${avatar}) center/cover` : 'rgba(255,222,2,0.08)',
+                    color: '#FFDE02',
+                  } as React.CSSProperties}
+                >
+                  {avatar ? '' : (username?.charAt(0)?.toUpperCase() || '?')}
+                </div>
+                <label className="text-xs text-[#FFDE02] cursor-pointer hover:text-white transition-colors font-medium">
+                  Rasm yuklash
+                  <input type="file" accept="image/*" hidden onChange={handleAvatar} />
+                </label>
+              </div>
+
+              {/* Username */}
+              <div className="relative mb-3">
+                <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+                <input
+                  ref={nameRef}
+                  value={username}
+                  onChange={e => { setUsername(e.target.value); setError('') }}
+                  onKeyDown={e => e.key === 'Enter' && handleStart()}
+                  placeholder="Username"
+                  maxLength={30}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-3 text-sm text-white placeholder-zinc-600 outline-none focus:border-[#FFDE02] transition-colors"
+                />
+              </div>
+
+              {/* Bio */}
+              <textarea
+                value={bio}
+                onChange={e => setBio(e.target.value)}
+                placeholder="Bio (ixtiyoriy)"
+                maxLength={150}
+                rows={2}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none focus:border-[#FFDE02] mb-5 resize-none transition-colors"
+              />
+
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-400 text-xs mb-3 font-medium"
+                >
+                  {error}
+                </motion.p>
+              )}
+
+              <Button
+                onClick={handleStart}
+                disabled={!username.trim()}
+                loading={loading}
+                className="w-full"
+                size="lg"
+              >
+                {loading ? 'Yuklanmoqda...' : 'CHATGA KIRISH'}
+              </Button>
+
+              <button
+                onClick={() => setStep('welcome')}
+                className="w-full text-center text-xs text-zinc-600 mt-4 hover:text-zinc-400 transition-colors"
+              >
+                Ortga
+              </button>
+            </motion.div>
+          )}
+
+          {step === 'ready' && (
+            <motion.div
+              key="ready"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              className="text-center"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className="w-20 h-20 rounded-2xl bg-[#FFDE02]/10 flex items-center justify-center mx-auto mb-6"
+              >
+                <Zap size={44} className="text-[#FFDE02]" />
+              </motion.div>
+              <h2 className="text-2xl font-bold mb-2">Signal ulandi!</h2>
+              <p className="text-zinc-500 text-sm">Chatga kirmoqda...</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </main>
   )
 }
