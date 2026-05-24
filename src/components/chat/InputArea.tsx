@@ -3,10 +3,11 @@
 import { useRef, useState, useEffect } from 'react'
 import { Send, ImageIcon, Mic, MicOff, Volume2, X } from 'lucide-react'
 import { isSpeechSupported } from '@/lib/voice'
+import EmojiPicker from './EmojiPicker'
 
 interface Props {
   text: string
-  setText: (v: string) => void
+  setText: (v: string | ((prev: string) => string)) => void
   media: string
   setMedia: (v: string) => void
   recording: boolean
@@ -121,6 +122,11 @@ export default function InputArea({
           className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-[#FFDE02] resize-none max-h-[120px] disabled:opacity-40 transition-colors"
           style={{ height: 'auto', minHeight: 38 }}
         />
+
+        {/* Emoji */}
+        {!recording && (
+          <EmojiPicker onEmoji={e => setText(prev => prev + e)} />
+        )}
 
         {/* Speech to text */}
         {isSpeechSupported() && text.length === 0 && !recording && (
