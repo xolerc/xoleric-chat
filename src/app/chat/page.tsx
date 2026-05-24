@@ -43,6 +43,9 @@ export default function ChatPage() {
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [loading, setLoading] = useState(true)
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null)
+  const [replyTo, setReplyTo] = useState<Message | null>(null)
+  const msgContainer = useRef<HTMLDivElement>(null)
+  const [showScrollDown, setShowScrollDown] = useState(false)
   const msgEnd = useRef<HTMLDivElement>(null)
   const recTimer = useRef<NodeJS.Timeout | null>(null)
   const recStart = useRef(0)
@@ -71,6 +74,18 @@ export default function ChatPage() {
 
   // ─── Auto scroll ───
   useEffect(() => { msgEnd.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  // ─── Scroll detection ───
+  useEffect(() => {
+    const el = msgContainer.current
+    if (!el) return
+    const handler = () => {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight
+      setShowScrollDown(dist > 200)
+    }
+    el.addEventListener('scroll', handler)
+    return () => el.removeEventListener('scroll', handler)
+  }, [])
 
   // ─── Sound on new message ───
   const prevCount = useRef(messages.length)
@@ -138,8 +153,9 @@ export default function ChatPage() {
     await sendMessage({
       fromId: user.id, fromName: user.username,
       fromAvatar: user.avatar, text: text.trim(), media,
+      replyTo: replyTo?.id || '', replyToName: replyTo?.fromName || '',
     })
-    setText(''); setMedia(''); setShowSuggestions(false)
+    setText(''); setMedia(''); setReplyTo(null); setShowSuggestions(false)
     const newEnergy = Math.min(100, (user.energy || 50) + 2)
     setUser({ ...user, energy: newEnergy })
     await updateUser(user.id, { energy: newEnergy }).catch(() => {})
@@ -289,7 +305,7 @@ export default function ChatPage() {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Mobile header */}
         <MobileHeader
           onlineCount={onlineUsers.length}
@@ -299,7 +315,7 @@ export default function ChatPage() {
         />
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 scrollbar-hide">
+        <div ref={msgContainer} className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 scrollbar-hide">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
@@ -324,11 +340,13 @@ export default function ChatPage() {
                     <MessageBubble
                       msg={m}
                       isOwn={!!own}
+                      messages={messages}
                       playing={playing}
                       onPlayVoice={playVoiceMsg}
                       onReact={handleReact}
                       onDelete={own ? handleDelete : undefined}
                       onImageClick={handleImageClick}
+                      onReply={setReplyTo}
                     />
                   </div>
                 )
@@ -393,6 +411,37 @@ export default function ChatPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Scroll to bottom */}
+        {showScrollDown && (
+          <button
+            onClick={() => msgEnd.current?.scrollIntoView({ behavior: 'smooth' })}
+            className="absolute bottom-20 right-4 md:right-8 z-10 w-9 h-9 rounded-full bg-[#FFDE02] flex items-center justify-center text-black shadow-lg hover:bg-white transition-all animate-scale-in"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        )}
+
+        {/* Reply bar */}
+        {replyTo && (
+          <div className="px-3 md:px-4 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center gap-2">
+            <div className="w-0.5 h-8 bg-[#FFDE02] rounded-full flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-[#FFDE02]">
+                {replyTo.fromName} ga javob
+              </p>
+              <p className="text-xs text-zinc-500 truncate">
+                {replyTo.text || (replyTo.media?.startsWith('data:audio') ? '🎤 Ovozli xabar' : replyTo.media ? '📷 Rasm' : '')}
+              </p>
+            </div>
+            <button
+              onClick={() => setReplyTo(null)}
+              className="p-1 rounded hover:bg-white/10 text-zinc-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        )}
 
         {/* Input */}
         <InputArea

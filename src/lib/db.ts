@@ -30,6 +30,8 @@ export type Message = {
   time: number
   reaction?: string
   replyTo?: string
+  replyToName?: string
+  replyText?: string
 }
 
 export type Notification = {
@@ -81,11 +83,12 @@ export async function getMessages(groupId = 'main'): Promise<Message[]> {
     .sort((a, b) => (a.time || 0) - (b.time || 0))
 }
 
-export async function sendMessage(msg: Partial<Message>) {
+export async function sendMessage(msg: Partial<Message> & { replyToName?: string }) {
   const data = {
     fromId: msg.fromId || '', fromName: msg.fromName || 'Anon',
     fromAvatar: msg.fromAvatar || '', text: msg.text || '',
     media: msg.media || '', time: Date.now(), reaction: '',
+    replyTo: msg.replyTo || '', replyToName: msg.replyToName || '',
   }
   await fetchJSON(`/messages/main.json`, {
     method: 'POST', body: JSON.stringify(data),

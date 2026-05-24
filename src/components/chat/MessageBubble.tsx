@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import type { Message } from '@/lib/db'
 import { detectMood, moodEmoji } from '@/lib/ai'
 import { timeAgo, getColor } from '@/lib/db'
-import { Volume2, Trash2 } from 'lucide-react'
+import { Volume2, Trash2, Reply } from 'lucide-react'
 
 const REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '💯', '⚡']
 
@@ -13,18 +13,23 @@ interface Props {
   msg: Message
   isOwn: boolean
   playing: string | null
+  messages: Message[]
   onPlayVoice: (b64: string) => void
   onReact: (msgId: string, emoji: string) => void
   onDelete?: (msgId: string) => void
   onImageClick?: (src: string) => void
+  onReply?: (msg: Message) => void
 }
 
-export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReact, onDelete, onImageClick }: Props) {
+export default function MessageBubble({ msg, isOwn, playing, messages, onPlayVoice, onReact, onDelete, onImageClick, onReply }: Props) {
   const [imgLoaded, setImgLoaded] = useState(false)
-  const [showReactions, setShowReactions] = useState(false)
+  const [showActions, setShowActions] = useState(false)
   const isVoice = msg.media?.startsWith('data:audio')
   const mood = detectMood(msg.text)
   const color = getColor(msg.fromName)
+
+  const replyMsg = msg.replyTo ? messages.find(m => m.id === msg.replyTo) : null
+  const replyColor = replyMsg ? getColor(replyMsg.fromName) : '#555'
 
   return (
     <motion.div
@@ -43,24 +48,13 @@ export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReac
           {msg.fromName?.charAt(0).toUpperCase() || '?'}
         </div>
 
-        {/* Content */}
         <div className={`min-w-0 max-w-full ${isOwn ? 'items-end' : ''}`}>
-          {/* Name + Mood + Actions */}
+          {/* Name + Mood */}
           <div className={`flex items-center gap-1.5 mb-0.5 ${isOwn ? 'justify-end' : ''}`}>
             <span className={`text-[10px] font-semibold ${isOwn ? 'text-[#FFDE02]' : 'text-zinc-500'}`}>
               {isOwn ? 'Siz' : msg.fromName}
             </span>
             <span className="text-[10px]">{moodEmoji(mood as any)}</span>
-
-            {/* Delete (own messages only) */}
-            {isOwn && onDelete && (
-              <button
-                onClick={() => onDelete(msg.id)}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10 text-zinc-600 hover:text-red-400 transition-all"
-              >
-                <Trash2 size={11} />
-              </button>
-            )}
           </div>
 
           {/* Bubble */}
@@ -70,9 +64,24 @@ export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReac
                 ? 'bg-[#FFDE02]/10 rounded-tr-md'
                 : 'bg-white/[0.04] rounded-tl-md'
             }`}
-            onMouseEnter={() => setShowReactions(true)}
-            onMouseLeave={() => setShowReactions(false)}
+            onMouseEnter={() => setShowActions(true)}
+            onMouseLeave={() => setShowActions(false)}
           >
+            {/* Reply preview */}
+            {replyMsg && (
+              <div
+                className="mb-2 pl-3 border-l-2 rounded-sm text-xs"
+                style={{ borderColor: replyColor }}
+              >
+                <p className="font-semibold text-[10px]" style={{ color: replyColor }}>
+                  {replyMsg.fromName}
+                </p>
+                <p className="text-zinc-500 truncate max-w-[200px]">
+                  {replyMsg.text || (replyMsg.media ? '📷 Rasm' : '🎤 Ovoz')}
+                </p>
+              </div>
+            )}
+
             {msg.text && (
               <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap break-words">
                 {msg.text}
@@ -100,9 +109,7 @@ export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReac
                 className="flex items-center gap-2.5 mt-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
               >
                 {playing === msg.media ? (
-                  <div className="voice-wave">
-                    {[1, 2, 3, 4, 5].map(i => <span key={i} />)}
-                  </div>
+                  <div className="voice-wave">{[1,2,3,4,5].map(i => <span key={i} />)}</div>
                 ) : (
                   <Volume2 size={16} className="text-[#FFDE02]" />
                 )}
@@ -118,22 +125,40 @@ export default function MessageBubble({ msg, isOwn, playing, onPlayVoice, onReac
               <span className="text-[9px] text-zinc-600">{timeAgo(msg.time)}</span>
             </div>
 
-            {/* Reaction picker on hover */}
-            {showReactions && (
+            {/* Actions on hover: Reply + Reactions + Delete */}
+            {showActions && (
               <motion.div
                 initial={{ opacity: 0, y: 4, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 className={`absolute -bottom-4 flex gap-0.5 bg-[#0f0f14] border border-white/[0.08] rounded-full px-1.5 py-1 shadow-lg z-10 ${isOwn ? 'right-0' : 'left-0'}`}
               >
+                {onReply && (
+                  <button
+                    onClick={() => { onReply(msg); setShowActions(false) }}
+                    className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors"
+                    title="Javob berish"
+                  >
+                    <Reply size={11} className="text-zinc-400" />
+                  </button>
+                )}
                 {REACTIONS.map(r => (
                   <button
                     key={r}
-                    onClick={() => { onReact(msg.id, r); setShowReactions(false) }}
+                    onClick={() => { onReact(msg.id, r); setShowActions(false) }}
                     className="w-6 h-6 flex items-center justify-center text-sm hover:scale-125 transition-transform rounded-full hover:bg-white/10"
                   >
                     {r}
                   </button>
                 ))}
+                {isOwn && onDelete && (
+                  <button
+                    onClick={() => { onDelete(msg.id); setShowActions(false) }}
+                    className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors"
+                    title="O'chirish"
+                  >
+                    <Trash2 size={11} className="text-red-400" />
+                  </button>
+                )}
               </motion.div>
             )}
           </div>
