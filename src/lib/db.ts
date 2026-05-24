@@ -150,7 +150,7 @@ export function subscribeMessages(callback: (msgs: Message[]) => void) {
   const poll = async () => {
     try {
       const msgs = await getMessages('main')
-      const key = JSON.stringify(msgs.map(m => m.id + (m.text || '') + (m.media || '') + (m.reaction || '')))
+      const key = JSON.stringify(msgs.map(m => m.id + (m.text || '') + (m.media || '') + (m.reaction || '') + (m.replyTo || '') + (m.replyToName || '')))
       if (key !== last) { last = key; callback(msgs) }
     } catch {}
   }
