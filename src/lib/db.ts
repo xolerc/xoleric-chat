@@ -98,6 +98,10 @@ export async function addReaction(msgId: string, reaction: string) {
   })
 }
 
+export async function deleteMessage(msgId: string) {
+  await fetchJSON(`/messages/main/${msgId}.json`, { method: 'DELETE' })
+}
+
 // ─── NOTIFICATIONS ───
 export async function addNotification(n: Partial<Notification>) {
   const data = {

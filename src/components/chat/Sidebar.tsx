@@ -23,6 +23,7 @@ interface Props {
   onLogout: () => void
   onMarkRead: (id: string) => void
   onEnergyClick: () => void
+  onEditProfile?: () => void
   mobileOpen: boolean
   onMobileClose: () => void
 }
@@ -32,7 +33,7 @@ export default function Sidebar({
   moodEmoji: moodEmojiStr, moodColor: moodColorStr,
   showAi, showSummary, showNotif, summary,
   onToggleAi, onToggleSummary, onToggleNotif,
-  onLogout, onMarkRead, onEnergyClick,
+  onLogout, onMarkRead, onEnergyClick, onEditProfile,
   mobileOpen, onMobileClose,
 }: Props) {
   const content = (
@@ -137,6 +138,15 @@ export default function Sidebar({
           <div className="text-xs text-zinc-500 flex flex-col items-end gap-0.5">
             <span className="font-semibold">⚡{user.energy || 50}</span>
           </div>
+          {onEditProfile && (
+            <button
+              onClick={e => { e.stopPropagation(); onEditProfile() }}
+              className="p-1 rounded-lg hover:bg-white/10 text-zinc-600 hover:text-[#FFDE02] transition-colors"
+              title="Profilni tahrirlash"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+            </button>
+          )}
         </div>
       )}
 

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import {
   getUser, getAllUsers, getMessages, sendMessage,
   subscribeMessages, getNotifications, markNotifRead,
-  updateUser, Message, User, Notification,
+  updateUser, addReaction, deleteMessage,
+  Message, User, Notification,
 } from '@/lib/db'
 import { detectMood, moodEmoji, moodColor, getSuggestions, generateSummary } from '@/lib/ai'
 import { startRecording, stopRecording, blobToBase64, playAudio, isSpeechSupported, speechToText } from '@/lib/voice'
@@ -15,6 +16,7 @@ import Sidebar from '@/components/chat/Sidebar'
 import MobileHeader from '@/components/chat/MobileHeader'
 import MessageBubble from '@/components/chat/MessageBubble'
 import InputArea from '@/components/chat/InputArea'
+import EditProfileModal from '@/components/chat/EditProfileModal'
 
 export default function ChatPage() {
   const router = useRouter()
@@ -36,6 +38,8 @@ export default function ChatPage() {
   const [typing, setTyping] = useState<string[]>([])
   const [mood, setMood] = useState<string>('neutral')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [loading, setLoading] = useState(true)
   const msgEnd = useRef<HTMLDivElement>(null)
   const recTimer = useRef<NodeJS.Timeout | null>(null)
   const recStart = useRef(0)
@@ -192,6 +196,26 @@ export default function ChatPage() {
     updateUser(user.id, { energy: e }).catch(() => {})
   }
 
+  // ─── Reactions ───
+  async function handleReact(msgId: string, emoji: string) {
+    await addReaction(msgId, emoji).catch(() => {})
+    getMessages().then(setMessages)
+  }
+
+  // ─── Delete ───
+  async function handleDelete(msgId: string) {
+    if (!confirm("O'chirilsinmi?")) return
+    await deleteMessage(msgId).catch(() => {})
+    getMessages().then(setMessages)
+  }
+
+  // ─── Loading ───
+  useEffect(() => {
+    if (messages.length > 0 || user === null) return
+    const t = setTimeout(() => setLoading(false), 2000)
+    return () => clearTimeout(t)
+  }, [messages, user])
+
   // ─── Derived ───
   const onlineUsers = users.filter(u => u.online)
   const summary = generateSummary(messages.slice(-20).map(m => ({ fromName: m.fromName, text: m.text })))
@@ -217,6 +241,7 @@ export default function ChatPage() {
         onLogout={handleLogout}
         onMarkRead={markNotifRead}
         onEnergyClick={handleEnergyClick}
+        onEditProfile={() => setShowEditProfile(true)}
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
       />
@@ -252,6 +277,8 @@ export default function ChatPage() {
                     isOwn={!!own}
                     playing={playing}
                     onPlayVoice={playVoiceMsg}
+                    onReact={handleReact}
+                    onDelete={own ? handleDelete : undefined}
                   />
                 )
               })}
@@ -331,6 +358,16 @@ export default function ChatPage() {
           onFilePick={async f => setMedia(await readFile(f))}
         />
       </div>
+
+      {/* Edit Profile Modal */}
+      {user && (
+        <EditProfileModal
+          user={user}
+          open={showEditProfile}
+          onClose={() => setShowEditProfile(false)}
+          onSave={updated => setUser(updated)}
+        />
+      )}
     </main>
   )
 }
