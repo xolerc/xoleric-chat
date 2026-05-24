@@ -32,6 +32,7 @@ export type Message = {
   replyTo?: string
   replyToName?: string
   replyText?: string
+  edited?: number
 }
 
 export type Notification = {
@@ -105,6 +106,13 @@ export async function deleteMessage(msgId: string) {
   await fetchJSON(`/messages/main/${msgId}.json`, { method: 'DELETE' })
 }
 
+export async function editMessage(msgId: string, text: string) {
+  await Promise.all([
+    fetchJSON(`/messages/main/${msgId}/text.json`, { method: 'PUT', body: JSON.stringify(text) }),
+    fetchJSON(`/messages/main/${msgId}/edited.json`, { method: 'PUT', body: JSON.stringify(Date.now()) }),
+  ])
+}
+
 // ─── NOTIFICATIONS ───
 export async function addNotification(n: Partial<Notification>) {
   const data = {
@@ -150,7 +158,7 @@ export function subscribeMessages(callback: (msgs: Message[]) => void) {
   const poll = async () => {
     try {
       const msgs = await getMessages('main')
-      const key = JSON.stringify(msgs.map(m => m.id + (m.text || '') + (m.media || '') + (m.reaction || '') + (m.replyTo || '') + (m.replyToName || '')))
+      const key = JSON.stringify(msgs.map(m => m.id + (m.text || '') + (m.media || '') + (m.reaction || '') + (m.replyTo || '') + (m.replyToName || '') + (m.edited || '')))
       if (key !== last) { last = key; callback(msgs) }
     } catch {}
   }

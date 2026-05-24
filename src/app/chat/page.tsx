@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   getUser, getAllUsers, getMessages, sendMessage,
   subscribeMessages, getNotifications, markNotifRead,
-  updateUser, addReaction, deleteMessage,
+  updateUser, addReaction, deleteMessage, editMessage,
   Message, User, Notification,
 } from '@/lib/db'
 import { detectMood, moodEmoji, moodColor, getSuggestions, generateSummary } from '@/lib/ai'
@@ -45,6 +45,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
+  const [editingMsg, setEditingMsg] = useState<Message | null>(null)
   const msgContainer = useRef<HTMLDivElement>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const msgEnd = useRef<HTMLDivElement>(null)
@@ -147,15 +148,20 @@ export default function ChatPage() {
     })
   }, [])
 
-  // ─── Send message ───
+  // ─── Send / Edit message ───
   async function handleSend() {
     if ((!text.trim() && !media) || !user) return
-    playSend()
-    await sendMessage({
-      fromId: user.id, fromName: user.username,
-      fromAvatar: user.avatar, text: text.trim(), media,
-      replyTo: replyTo?.id || '', replyToName: replyTo?.fromName || '',
-    })
+    if (editingMsg) {
+      await editMessage(editingMsg.id, text.trim()).catch(() => {})
+      setEditingMsg(null)
+    } else {
+      playSend()
+      await sendMessage({
+        fromId: user.id, fromName: user.username,
+        fromAvatar: user.avatar, text: text.trim(), media,
+        replyTo: replyTo?.id || '', replyToName: replyTo?.fromName || '',
+      })
+    }
     setText(''); setMedia(''); setReplyTo(null); setShowSuggestions(false)
     const newEnergy = Math.min(100, (user.energy || 50) + 2)
     setUser({ ...user, energy: newEnergy })
@@ -351,6 +357,7 @@ export default function ChatPage() {
                       onDelete={own ? handleDelete : undefined}
                       onImageClick={handleImageClick}
                       onReply={setReplyTo}
+                      onEdit={own && m.text ? msg => { setEditingMsg(msg); setText(msg.text); setReplyTo(null) } : undefined}
                     />
                   </div>
                 )
@@ -426,20 +433,20 @@ export default function ChatPage() {
           </button>
         )}
 
-        {/* Reply bar */}
-        {replyTo && (
+        {/* Reply / Edit bar */}
+        {(replyTo || editingMsg) && (
           <div className="px-3 md:px-4 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center gap-2">
-            <div className="w-0.5 h-8 bg-[#FFDE02] rounded-full flex-shrink-0" />
+            <div className={`w-0.5 h-8 rounded-full flex-shrink-0 ${editingMsg ? 'bg-blue-500' : 'bg-[#FFDE02]'}`} />
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold text-[#FFDE02]">
-                {replyTo.fromName} ga javob
+              <p className={`text-[10px] font-semibold ${editingMsg ? 'text-blue-400' : 'text-[#FFDE02]'}`}>
+                {editingMsg ? 'Xabarni tahrirlash' : `${replyTo?.fromName} ga javob`}
               </p>
               <p className="text-xs text-zinc-500 truncate">
-                {replyTo.text || (replyTo.media?.startsWith('data:audio') ? '🎤 Ovozli xabar' : replyTo.media ? '📷 Rasm' : '')}
+                {editingMsg?.text || replyTo?.text || (replyTo?.media?.startsWith('data:audio') ? '🎤 Ovozli xabar' : replyTo?.media ? '📷 Rasm' : '')}
               </p>
             </div>
             <button
-              onClick={() => setReplyTo(null)}
+              onClick={() => { setReplyTo(null); setEditingMsg(null) }}
               className="p-1 rounded hover:bg-white/10 text-zinc-500 transition-colors"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>

@@ -19,9 +19,10 @@ interface Props {
   onDelete?: (msgId: string) => void
   onImageClick?: (src: string) => void
   onReply?: (msg: Message) => void
+  onEdit?: (msg: Message) => void
 }
 
-export default function MessageBubble({ msg, isOwn, playing, messages, onPlayVoice, onReact, onDelete, onImageClick, onReply }: Props) {
+export default function MessageBubble({ msg, isOwn, playing, messages, onPlayVoice, onReact, onDelete, onImageClick, onReply, onEdit }: Props) {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [showActions, setShowActions] = useState(false)
   const isVoice = msg.media?.startsWith('data:audio')
@@ -122,6 +123,7 @@ export default function MessageBubble({ msg, isOwn, playing, messages, onPlayVoi
             {/* Footer */}
             <div className="flex items-center gap-2 mt-1.5">
               {msg.reaction && <span className="text-sm">{msg.reaction}</span>}
+              {msg.edited && <span className="text-[8px] text-zinc-700">tahrirlangan</span>}
               <span className="text-[9px] text-zinc-600">{timeAgo(msg.time)}</span>
             </div>
 
@@ -150,6 +152,15 @@ export default function MessageBubble({ msg, isOwn, playing, messages, onPlayVoi
                     {r}
                   </button>
                 ))}
+                {isOwn && onEdit && msg.text && (
+                  <button
+                    onClick={() => { onEdit(msg); setShowActions(false) }}
+                    className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors"
+                    title="Tahrirlash"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-400"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  </button>
+                )}
                 {isOwn && onDelete && (
                   <button
                     onClick={() => { onDelete(msg.id); setShowActions(false) }}
