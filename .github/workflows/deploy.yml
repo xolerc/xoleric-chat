@@ -1,4 +1,4 @@
-name: Deploy to Firebase Hosting
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,5 +17,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm install -g firebase-tools
-      - run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
+      - run: cp out/index.html out/404.html
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
