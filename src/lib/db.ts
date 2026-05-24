@@ -67,12 +67,17 @@ export async function getAllUsers(): Promise<User[]> {
   return Object.values(data) as User[]
 }
 
+export async function usernameExists(username: string): Promise<boolean> {
+  const users = await getAllUsers()
+  return users.some(u => u.username?.toLowerCase() === username.toLowerCase().trim())
+}
+
 // ─── MESSAGES ───
 export async function getMessages(groupId = 'main'): Promise<Message[]> {
   const data = await fetchJSON(`/messages/${groupId}.json`)
   if (!data) return []
   return Object.entries(data)
-    .map(([id, v]) => ({ id, ...v } as Message))
+    .map(([id, v]) => ({ id, ...(v as object) } as Message))
     .sort((a, b) => (a.time || 0) - (b.time || 0))
 }
 
@@ -108,7 +113,7 @@ export async function getNotifications(): Promise<Notification[]> {
   const data = await fetchJSON('/notifications.json')
   if (!data) return []
   return Object.entries(data)
-    .map(([id, v]) => ({ id, ...v } as Notification))
+    .map(([id, v]) => ({ id, ...(v as object) } as Notification))
     .sort((a, b) => b.time - a.time)
 }
 

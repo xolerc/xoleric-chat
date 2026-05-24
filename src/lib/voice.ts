@@ -67,7 +67,7 @@ export function formatDuration(seconds: number): string {
 
 // ─── VOICE-TO-TEXT (Web Speech API) ───
 const SpeechRecognition = (typeof window !== 'undefined') &&
-  (window.SpeechRecognition || window.webkitSpeechRecognition)
+  ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
 
 export function isSpeechSupported(): boolean {
   return !!SpeechRecognition

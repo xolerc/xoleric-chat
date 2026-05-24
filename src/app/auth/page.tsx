@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createUser, updateUser, randomAura } from '@/lib/db'
+import { createUser, updateUser, randomAura, usernameExists } from '@/lib/db'
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 
@@ -71,6 +71,8 @@ export default function AuthPage() {
   async function handleStart() {
     setLoading(true)
     try {
+      const exists = await usernameExists(username)
+      if (exists) { alert('Bu username band. Boshqasini tanlang.'); setLoading(false); return }
       const user = await createUser({ username, bio, avatar, aura: randomAura() })
       localStorage.setItem('xolerc_uid', user.id)
       router.push('/chat')

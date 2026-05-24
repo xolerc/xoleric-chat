@@ -12,7 +12,7 @@ import { detectMood, moodEmoji, moodColor, getSuggestions, generateSummary, type
 import { startRecording, stopRecording, blobToBase64, playAudio, isSpeechSupported, speechToText } from '@/lib/voice'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Zap, Send, Image, LogOut, Bell, Smile, X,
+  Zap, Send, ImageIcon, LogOut, Bell, Smile, X,
   Mic, MicOff, Volume2, Sparkles, BarChart3,
 } from 'lucide-react'
 
@@ -540,7 +540,7 @@ export default function ChatPage() {
               onClick={() => fileInput.current?.click()}
               className="w-9 h-9 rounded-xl border border-white/10 flex items-center justify-center text-zinc-500 hover:border-[#FFDE02] hover:text-[#FFDE02] transition-all flex-shrink-0"
             >
-              <Image size={16} />
+              <ImageIcon size={16} />
               <input ref={fileInput} type="file" accept="image/*,.gif" hidden onChange={async e => {
                 const f = e.target.files?.[0]
                 if (f) setMedia(await readFile(f))
